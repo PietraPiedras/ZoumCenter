@@ -1,0 +1,89 @@
+name: Diseñar carrusel universos
+on:
+  push:
+    paths:
+      - '.github/workflows/carrusel-universos.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  design:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install Pillow
+      - name: Componer carrusel con fotos originales
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image,ImageOps,ImageDraw,ImageFont
+          W,H=1080,1350
+          out=Path('Instagram/Publicaciones/Carrusel-Universos')
+          out.mkdir(parents=True,exist_ok=True)
+          data=[('SPIDER-MAN','Un gran poder,','una gran iluminación.','20200622_024600.jpg','#ff4b55'),('FLASH','Más rápido que','la oscuridad.','20200622_025147.jpg','#ffc53a'),('HARRY POTTER','¡Lumos!','Que empiece la magia.','20200622_025335.jpg','#eac275'),('NARUTO','Encendé','tu chakra.','20200622_025517.jpg','#a58bff')]
+          def font(n,bold=True):
+              return ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans'+('-Bold' if bold else '')+'.ttf',n)
+          def txt(d,s,x,y,n,col='#ffffff',bold=True,anchor='mt'):
+              d.text((x,y),s,font=font(n,bold),fill=col,anchor=anchor)
+          def frame(accent,num):
+              im=Image.new('RGB',(W,H),'#101218')
+              d=ImageDraw.Draw(im)
+              d.rectangle((0,0,W,12),fill=accent)
+              txt(d,'ZOUM.CENTER  /  COLECCIÓN GEEK',54,45,25,accent,anchor='lt')
+              txt(d,f'{num:02d} / 06',1026,45,25,'#ffffff',anchor='rt')
+              d.line((54,98,1026,98),fill='#454854',width=2)
+              txt(d,'@zoum.center',54,1290,25,'#ffffff',anchor='lt')
+              txt(d,'HECHO A MANO',1026,1290,23,accent,anchor='rt')
+              return im,d
+          def photo(im,box,file):
+              p=ImageOps.exif_transpose(Image.open(file)).convert('RGB')
+              x,y,w,h=box
+              # Fit entire image, not stretch; crop only excess background vertically.
+              if p.height/p.width>1.65:
+                  p=p.crop((0,int(p.height*.09),p.width,int(p.height*.86)))
+              p=ImageOps.contain(p,(w,h),Image.Resampling.LANCZOS)
+              im.paste(p,(x+(w-p.width)//2,y+(h-p.height)//2))
+          def save(im,n):
+              im.save(out/f'{n:02d}.jpg',quality=90,optimize=True)
+          im,d=frame('#ffbd38',1)
+          txt(d,'ILUMINÁ TU',540,135,92,'#ffffff')
+          txt(d,'FANATISMO',540,248,114,'#ffbd38')
+          for i,(name,_,__,file,color) in enumerate(data):
+              x=54+(i%2)*496;y=410+(i//2)*365
+              d.rounded_rectangle((x,y,x+476,y+345),radius=15,fill='#080a10',outline=color,width=3)
+              photo(im,(x+12,y+12,452,280),file)
+              txt(d,name,x+238,y+302,29,color)
+          txt(d,'DESLIZÁ Y ELEGÍ TU FAVORITO  ›',540,1180,34,'#ffbd38')
+          save(im,1)
+          for i,(name,line1,line2,file,color) in enumerate(data,2):
+              im,d=frame(color,i)
+              txt(d,name,540,138,75,color)
+              txt(d,line1,540,245,52)
+              txt(d,line2,540,310,48)
+              d.rounded_rectangle((99,405,981,1150),radius=20,fill='#080a10',outline=color,width=4)
+              photo(im,(115,421,850,713),file)
+              txt(d,'VELADOR ARTESANAL DE MADERA',540,1193,31,color)
+              save(im,i)
+          im,d=frame('#ffbd38',6)
+          txt(d,'¿CUÁL ELEGIRÍAS',540,170,76)
+          txt(d,'VOS?',540,265,145,'#ffbd38')
+          for i,(name,_,__,file,color) in enumerate(data):
+              x=54+(i%2)*496;y=460+(i//2)*305
+              d.rounded_rectangle((x,y,x+476,y+285),radius=15,fill='#080a10',outline=color,width=3)
+              photo(im,(x+12,y+12,452,224),file)
+              txt(d,name,x+238,y+247,25,color)
+          txt(d,'CONTANOS EN LOS COMENTARIOS',540,1100,38,'#ffbd38')
+          txt(d,'Consultas por mensaje directo',540,1170,35,'#ffffff',False)
+          save(im,6)
+          PY
+      - name: Guardar carrusel
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Instagram/Publicaciones/Carrusel-Universos
+          if ! git diff --cached --quiet; then
+            git commit -m 'Carrusel de cuatro universos con fotos reales'
+            git pull --rebase
+            git push
+          fi
