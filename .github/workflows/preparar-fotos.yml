@@ -1,0 +1,51 @@
+name: Preparar fotos para redes
+on:
+  push:
+    paths:
+      - '*.jpg'
+      - '*.jpeg'
+      - '*.JPG'
+      - '*.JPEG'
+      - '.github/workflows/preparar-fotos.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: zoum-previews
+  cancel-in-progress: false
+jobs:
+  previews:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install Pillow
+      - name: Generar copias optimizadas sin alterar originales
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageOps
+          out = Path('Instagram/Previews')
+          out.mkdir(parents=True, exist_ok=True)
+          for src in sorted(Path('.').iterdir()):
+              if not src.is_file() or src.suffix.lower() not in ('.jpg', '.jpeg'):
+                  continue
+              dst = out / (src.stem + '.jpg')
+              with Image.open(src) as im:
+                  im = ImageOps.exif_transpose(im).convert('RGB')
+                  im.thumbnail((1080, 1350), Image.Resampling.LANCZOS)
+                  im.save(dst, 'JPEG', quality=80, optimize=True)
+          PY
+      - name: Guardar copias
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Instagram/Previews
+          if ! git diff --cached --quiet; then
+            git commit -m 'Generar copias optimizadas para Instagram'
+            git pull --rebase
+            git push
+          fi
