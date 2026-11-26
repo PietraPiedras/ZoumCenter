@@ -1,0 +1,109 @@
+name: Diseñar carrusel musical
+on:
+  push:
+    paths:
+      - '.github/workflows/carrusel-musical.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  design:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install Pillow
+      - name: Componer cuatro placas con fotografías reales
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageOps, ImageDraw, ImageFont
+          import random
+          W,H=1080,1350
+          OUT=Path('Instagram/Publicaciones/Carrusel-Musical')
+          OUT.mkdir(parents=True,exist_ok=True)
+          cream='#f3dfb6'; red='#ec3a31'; yellow='#ffca42'; black='#151312'
+          def font(s,italic=False,regular=False):
+              p='/usr/share/fonts/truetype/dejavu/DejaVuSans'
+              return ImageFont.truetype(p+('-BoldOblique' if italic else ('' if regular else '-Bold'))+'.ttf',s)
+          def text(d,t,x,y,s,c=cream,anchor='lt',italic=False,regular=False):
+              f=font(s,italic,regular)
+              while d.textlength(t,font=f)>975:
+                  s-=1; f=font(s,italic,regular)
+              d.text((x,y),t,font=f,fill=c,anchor=anchor)
+          def base(n):
+              im=Image.new('RGB',(W,H),black); d=ImageDraw.Draw(im)
+              rng=random.Random(22)
+              for i in range(11000):
+                  x=rng.randrange(W);y=rng.randrange(H);v=rng.randrange(20,40)
+                  d.point((x,y),fill=(v,v-2,v-4))
+              d.polygon([(0,0),(215,0),(0,180)],fill=red)
+              d.polygon([(1080,1350),(850,1350),(1080,1160)],fill=red)
+              d.rectangle((31,30,1049,1320),outline='#62594a',width=2)
+              text(d,'ZOUM.CENTER  /  COLECCIÓN MUSICAL',60,58,25)
+              text(d,f'{n:02d} / 04',1020,58,25,yellow,'rt')
+              d.line((60,105,1020,105),fill=red,width=5)
+              return im,d
+          def photo(im,box,path,crop,accent):
+              x,y,w,h=box
+              src=ImageOps.exif_transpose(Image.open(path)).convert('RGB')
+              sw,sh=src.size
+              src=src.crop((0,round(sh*crop[0]),sw,round(sh*crop[1])))
+              src=ImageOps.contain(src,(w-8,h-8),Image.Resampling.LANCZOS)
+              d=ImageDraw.Draw(im)
+              d.rectangle((x,y,x+w,y+h),fill='#080807',outline=accent,width=3)
+              im.paste(src,(x+(w-src.width)//2,y+(h-src.height)//2))
+          def strip(d,t,y):
+              d.polygon([(55,y+8),(1025,y),(1011,y+66),(44,y+72)],fill=yellow)
+              text(d,t,540,y+15,38,black,'mt',True)
+          def foot(d,t='HECHO EN MADERA  /  LUZ LED'):
+              d.line((60,1236,1020,1236),fill=red,width=3)
+              text(d,t,540,1255,27,cream,'mt')
+              text(d,'@zoum.center',540,1290,23,yellow,'mt')
+          def save(im,n):
+              im.save(OUT/f'{n:02d}.jpg',quality=89,optimize=True)
+          pf='20200809_194551.jpg';nv='20200803_225822.jpg'
+          im,d=base(1)
+          text(d,'VELADORES',540,135,97,cream,'mt',True)
+          text(d,'MUSICALES',540,250,110,red,'mt',True)
+          strip(d,'Rock que también ilumina',390)
+          photo(im,(60,500,465,665),pf,(.12,.78),red)
+          photo(im,(555,500,465,665),nv,(.18,.80),yellow)
+          text(d,'PINK FLOYD',292,1182,29,cream,'mt')
+          text(d,'NIRVANA',787,1182,29,yellow,'mt')
+          foot(d,'DESLIZÁ Y ELEGÍ TU FAVORITO')
+          save(im,1)
+          im,d=base(2)
+          text(d,'PINK FLOYD',540,145,116,cream,'mt',True)
+          strip(d,'The Wall en versión velador',295)
+          photo(im,(65,410,590,790),pf,(.13,.80),red)
+          photo(im,(685,410,330,365),'20200809_194544.jpg',(.12,.65),cream)
+          photo(im,(685,795,330,405),'20200809_194625.jpg',(.27,.80),red)
+          foot(d);save(im,2)
+          im,d=base(3)
+          text(d,'NIRVANA',540,145,140,yellow,'mt',True)
+          strip(d,'Un clásico que también ilumina',295)
+          photo(im,(65,410,590,790),nv,(.16,.82),yellow)
+          photo(im,(685,410,330,365),'20200803_225810.jpg',(.17,.74),cream)
+          photo(im,(685,795,330,405),'20200803_225833.jpg',(.19,.81),yellow)
+          foot(d);save(im,3)
+          im,d=base(4)
+          text(d,'¿QUÉ BANDA TE',540,140,86,cream,'mt',True)
+          text(d,'GUSTARÍA VER?',540,245,94,red,'mt',True)
+          strip(d,'Pedí tu diseño favorito',365)
+          photo(im,(65,480,450,665),pf,(.12,.80),red)
+          photo(im,(565,480,450,665),nv,(.16,.82),yellow)
+          text(d,'CONTANOS EN LOS COMENTARIOS',540,1170,32,yellow,'mt')
+          foot(d,'CONSULTAS POR MENSAJE DIRECTO')
+          save(im,4)
+          PY
+      - name: Guardar carrusel musical
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Instagram/Publicaciones/Carrusel-Musical
+          if ! git diff --cached --quiet; then
+            git commit -m 'Carrusel musical con fotografías reales de Pink Floyd y Nirvana'
+            git pull --rebase
+            git push
+          fi
