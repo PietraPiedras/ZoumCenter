@@ -1,0 +1,79 @@
+name: Carrusel Transformers real
+on:
+  push:
+    paths:
+      - '.github/workflows/transformers-real.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  design:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install Pillow
+      - run: |
+          python - <<'PY'
+          from PIL import Image,ImageDraw,ImageFont,ImageOps
+          from pathlib import Path
+          W,H=1080,1350
+          out=Path('Instagram/Publicaciones/Transformers-Real')
+          out.mkdir(parents=True,exist_ok=True)
+          red='#ff4559'; purple='#b284ff'; white='#f6f5ff'
+          def txt(d,t,x,y,s,c=white,a='mt',italic=False):
+              while True:
+                  f=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold'+('Oblique' if italic else '')+'.ttf',s)
+                  if d.textlength(t,font=f)<=970:break
+                  s-=1
+              d.text((x,y),t,font=f,fill=c,anchor=a)
+          def base(n,c):
+              im=Image.new('RGB',(W,H),'#0b0b14');d=ImageDraw.Draw(im)
+              for x in range(-1400,1400,55):
+                  d.line((x,0,x+1350,1350),fill='#151523',width=1)
+              d.polygon([(0,0),(270,0),(0,170)],fill='#242032')
+              d.polygon([(1080,1350),(820,1350),(1080,1180)],fill='#242032')
+              d.rectangle((44,38,1036,1312),outline='#343449',width=2)
+              d.polygon([(58,46),(80,46),(64,77),(42,77)],fill=c)
+              txt(d,'ZOUM.CENTER / COLECCIÓN GEEK',90,46,25,white,'lt')
+              txt(d,f'{n:02d} / 03',1018,46,25,c,'rt')
+              d.line((58,100,1020,100),fill=c,width=4)
+              d.line((58,1225,1020,1225),fill=c,width=3)
+              txt(d,'VELADORES ARTESANALES DE MADERA',540,1245,28)
+              txt(d,'@zoum.center',540,1284,25,c)
+              return im,d
+          def photo(im,name,box,c,region=(0,0,1,1)):
+              p=ImageOps.exif_transpose(Image.open(name+'.jpg')).convert('RGB')
+              w,h=p.size
+              p=p.crop(tuple(round(v*k) for v,k in zip(region,(w,h,w,h))))
+              x,y,bw,bh=box
+              p=ImageOps.contain(p,(bw-6,bh-6),Image.Resampling.LANCZOS)
+              d=ImageDraw.Draw(im)
+              d.rectangle((x,y,x+bw,y+bh),fill='#07070c',outline=c,width=3)
+              im.paste(p,(x+(bw-p.width)//2,y+(bh-p.height)//2))
+          def save(im,n):im.save(out/f'{n:02d}.jpg',quality=91,optimize=True)
+          im,d=base(1,red)
+          txt(d,'TRANSFORMERS',540,132,51,purple,italic=True)
+          txt(d,'¡ELEGÍ TU BANDO!',540,205,95,white,italic=True)
+          photo(im,'20200724_192432',(58,350,464,750),red,(0,.07,1,.90))
+          photo(im,'20200724_193302',(558,350,464,750),purple,(0,.04,1,.87))
+          txt(d,'AUTOBOTS',290,1121,38,red)
+          txt(d,'DECEPTICONS',790,1121,38,purple)
+          txt(d,'DESLIZÁ PARA VER MÁS  ›',540,1180,27)
+          save(im,1)
+          for n,name,c,sub,front,angle,detail in [
+              (2,'AUTOBOTS',red,'Protegé tu espacio con estilo','20200724_192432','20200724_192537','20200724_192440'),
+              (3,'DECEPTICONS',purple,'Oscuridad, poder y personalidad','20200724_193302','20200724_193322','20200724_193311')]:
+              im,d=base(n,c)
+              txt(d,name,540,140,119,c,italic=True)
+              txt(d,sub,540,278,39)
+              photo(im,front,(58,365,486,805),c,(0,.04,1,.94))
+              photo(im,angle,(568,365,454,475),c,(.04,.20,.96,.73) if n==2 else (0,.10,1,.66))
+              photo(im,detail,(568,860,454,310),c,(0,.19,1,.56))
+              save(im,n)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Instagram/Publicaciones/Transformers-Real
+          git commit -m 'Transformers con fotos originales verificadas'
+          git pull --rebase
+          git push
