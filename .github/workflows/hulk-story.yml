@@ -1,0 +1,50 @@
+name: Historia Hulk
+on:
+  push:
+    paths:
+      - '.github/workflows/hulk-story.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  design:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install Pillow
+      - run: |
+          python - <<'PY'
+          from PIL import Image,ImageOps,ImageDraw,ImageFont
+          from pathlib import Path
+          im=Image.new('RGB',(1080,1920),'#101a13')
+          d=ImageDraw.Draw(im)
+          green='#a4ef42'
+          for y in range(0,1920,30):
+              for x in range(0,1080,30):
+                  d.ellipse((x,y,x+3,y+3),fill='#263a24')
+          def t(s,y,n,c='white'):
+              f=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',n)
+              while d.textlength(s,font=f)>970:
+                  n-=1;f=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',n)
+              d.text((540,y),s,font=f,fill=c,anchor='mt')
+          t('ZOUM.CENTER',230,38,green)
+          t('¡QUE LA OSCURIDAD',305,75)
+          t('NO TE ENOJE!',400,100,green)
+          p=ImageOps.exif_transpose(Image.open('20200804_190444.jpg')).convert('RGB')
+          w,h=p.size
+          p=p.crop((0,int(h*.17),w,int(h*.89)))
+          p=ImageOps.contain(p,(930,970))
+          im.paste(p,((1080-p.width)//2,535+(970-p.height)//2))
+          t('VELADOR HULK',1515,72,green)
+          t('Hecho en madera • Luz LED',1600,37)
+          t('Consultas por DM',1670,43,green)
+          t('@zoum.center',1740,32)
+          out=Path('Instagram/Historias/Hulk.jpg')
+          out.parent.mkdir(parents=True,exist_ok=True)
+          im.save(out,quality=90)
+          PY
+      - run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Instagram/Historias/Hulk.jpg
+          git diff --cached --quiet || (git commit -m 'Historia Hulk con foto original' && git pull --rebase && git push)
