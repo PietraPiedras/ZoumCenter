@@ -1,0 +1,85 @@
+name: Preparar carrusel Pokémon
+on:
+  push:
+    paths:
+      - '.github/workflows/carrusel-pokemon.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  design:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install Pillow
+      - name: Componer fotografías originales
+        run: |
+          python - <<'PY'
+          from PIL import Image, ImageDraw, ImageFont, ImageOps
+          from pathlib import Path
+          W,H=1080,1350
+          out=Path('Instagram/Publicaciones/Carrusel-Pokemon')
+          out.mkdir(parents=True,exist_ok=True)
+          yellow='#f5d83d';blue='#45c9fa';white='#f6f9ff';bg='#101728'
+          def font(s):
+              return ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',s)
+          def txt(d,t,x,y,s,c=white,a='mt',maxw=960):
+              f=font(s)
+              while d.textlength(t,font=f)>maxw:
+                  s-=1;f=font(s)
+              d.text((x,y),t,font=f,fill=c,anchor=a)
+          def base(n,c):
+              im=Image.new('RGB',(W,H),bg);d=ImageDraw.Draw(im)
+              for y in range(0,H,54):
+                  for x in range(0,W,54):
+                      d.ellipse((x+3,y+3,x+5,y+5),fill='#25334c')
+              d.rectangle((0,0,1080,12),fill=c)
+              d.line((54,95,1026,95),fill=c,width=3)
+              txt(d,'ZOUM.CENTER / COLECCIÓN GEEK',54,45,24,c,'lt')
+              txt(d,f'{n:02d} / 03',1026,45,24,white,'rt')
+              d.line((54,1230,1026,1230),fill=c,width=3)
+              txt(d,'VELADORES ARTESANALES DE MADERA',540,1251,28,c)
+              txt(d,'@zoum.center',540,1293,24)
+              return im,d
+          def photo(im,file,box,c,crop):
+              x,y,w,h=box
+              p=ImageOps.exif_transpose(Image.open(file)).convert('RGB')
+              a,b=p.size
+              p=p.crop((0,round(b*crop[0]),a,round(b*crop[1])))
+              p=ImageOps.contain(p,(w-10,h-10),Image.Resampling.LANCZOS)
+              d=ImageDraw.Draw(im)
+              d.rectangle((x,y,x+w,y+h),fill='#080d17',outline=c,width=3)
+              im.paste(p,(x+(w-p.width)//2,y+(h-p.height)//2))
+          def save(im,n):
+              im.save(out/f'{n:02d}.jpg',quality=90,optimize=True)
+          im,d=base(1,yellow)
+          txt(d,'¿DE QUÉ',540,138,98)
+          txt(d,'EQUIPO SOS?',540,248,105,yellow)
+          txt(d,'POKÉMON GO',540,385,40,blue)
+          photo(im,'20200804_195406.jpg',(55,465,470,665),yellow,(.17,.91))
+          photo(im,'20200804_195555.jpg',(555,465,470,665),blue,(.16,.89))
+          txt(d,'INSTINTO',290,1151,36,yellow)
+          txt(d,'SABIDURÍA',790,1151,36,blue)
+          save(im,1)
+          for n,name,c,phrase,hero,detail in [
+            (2,'INSTINTO',yellow,'La energía de tu equipo','20200804_195406.jpg','20200804_195339.jpg'),
+            (3,'SABIDURÍA',blue,'Tu equipo, tu luz','20200804_195555.jpg','20200804_195532.jpg')]:
+              im,d=base(n,c)
+              txt(d,'EQUIPO',540,128,48)
+              txt(d,name,540,196,122,c)
+              txt(d,phrase,540,340,40)
+              photo(im,hero,(55,420,600,752),c,(.14,.90))
+              photo(im,detail,(685,420,340,752),c,(.14,.88))
+              save(im,n)
+          PY
+      - name: Guardar diseños
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Instagram/Publicaciones/Carrusel-Pokemon
+          if ! git diff --cached --quiet; then
+            git commit -m 'Carrusel Pokémon con fotografías reales'
+            git pull --rebase
+            git push
+          fi
