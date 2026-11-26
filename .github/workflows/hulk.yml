@@ -1,0 +1,66 @@
+name: Diseñar publicación Hulk
+on:
+  push:
+    paths:
+      - '.github/workflows/hulk.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  design:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install Pillow
+      - run: |
+          python - <<'PY'
+          from PIL import Image,ImageDraw,ImageFont,ImageOps
+          from pathlib import Path
+          import math
+          W,H=1080,1350
+          im=Image.new('RGB',(W,H),'#101a13'); d=ImageDraw.Draw(im)
+          green='#a4ef42';white='#f6ffe8'
+          for y in range(0,H,26):
+              for x in range(0,W,26):
+                  rr=2+int(2*(1-x/W))
+                  d.ellipse((x,y,x+rr,y+rr),fill='#213921')
+          d.polygon([(0,0),(280,0),(0,245)],fill='#315821')
+          d.polygon([(1080,1350),(805,1350),(1080,1130)],fill='#315821')
+          def text(t,x,y,s,c=white,a='mt',ital=False,maxw=980):
+              f=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold'+('Oblique' if ital else '')+'.ttf',s)
+              while d.textlength(t,font=f)>maxw:
+                  s-=1; f=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold'+('Oblique' if ital else '')+'.ttf',s)
+              d.text((x,y),t,font=f,fill=c,anchor=a)
+          def photo(path,box,crop):
+              x,y,w,h=box
+              p=ImageOps.exif_transpose(Image.open(path)).convert('RGB')
+              a,b=p.size
+              p=p.crop((0,round(b*crop[0]),a,round(b*crop[1])))
+              p=ImageOps.contain(p,(w-10,h-10),Image.Resampling.LANCZOS)
+              d.rectangle((x,y,x+w,y+h),fill='#071009',outline=green,width=3)
+              im.paste(p,(x+(w-p.width)//2,y+(h-p.height)//2))
+          text('ZOUM.CENTER  /  COLECCIÓN GEEK',55,46,25,green,'lt')
+          d.line((55,92,1025,92),fill=green,width=4)
+          text('¡QUE LA OSCURIDAD',540,118,73,white,ital=True)
+          text('NO TE ENOJE!',540,207,105,green,ital=True)
+          d.polygon([(52,340),(1028,330),(1010,400),(40,409)],fill=green)
+          text('VELADOR HULK',540,348,44,'#14210d',ital=True)
+          photo('20200804_190444.jpg',(55,440,592,735),(.19,.88))
+          photo('20200804_190423.jpg',(672,440,353,350),(.20,.76))
+          photo('20200804_190455.jpg',(672,810,353,365),(.30,.86))
+          d.line((55,1210,1025,1210),fill=green,width=3)
+          text('HECHO EN MADERA  /  LUZ LED',540,1231,32)
+          text('Consultas por DM  •  @zoum.center',540,1284,27,green)
+          p=Path('Instagram/Publicaciones/Hulk.jpg');p.parent.mkdir(parents=True,exist_ok=True)
+          im.save(p,quality=90,optimize=True)
+          PY
+      - run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Instagram/Publicaciones/Hulk.jpg
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publicación Hulk con fotos originales'
+            git pull --rebase
+            git push
+          fi
