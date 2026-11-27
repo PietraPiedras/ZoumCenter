@@ -1,0 +1,84 @@
+name: Pokemon comic real
+on:
+  push:
+    paths: ['.github/workflows/pokemon-comic-real.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  design:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install Pillow
+      - run: |
+          python - <<'PY'
+          from PIL import Image, ImageDraw, ImageFont, ImageOps
+          from pathlib import Path
+          import random
+          W,H=1080,1350
+          out=Path('Instagram/Publicaciones/Pokemon-Comic-Real');out.mkdir(parents=True,exist_ok=True)
+          Y='#ffe338';B='#31caff';R='#ff4653';cream='#fff4d8'
+          def text(im,t,y,s,c,angle=4,x=540,maxw=1000):
+              fpath='/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf'
+              while True:
+                  f=ImageFont.truetype(fpath,s)
+                  bb=f.getbbox(t,stroke_width=5)
+                  if bb[2]-bb[0]<maxw:break
+                  s-=2
+              layer=Image.new('RGBA',(bb[2]-bb[0]+24,bb[3]-bb[1]+24))
+              d=ImageDraw.Draw(layer);d.text((12-bb[0],12-bb[1]),t,font=f,fill=c,stroke_width=5,stroke_fill='#090910')
+              layer=layer.rotate(angle,expand=True,resample=Image.Resampling.BICUBIC)
+              im.paste(layer,(x-layer.width//2,y),layer)
+          def base(c,c2,n):
+              im=Image.new('RGB',(W,H),'#101019');d=ImageDraw.Draw(im);rng=random.Random(n+42)
+              for i in range(130):
+                  x=rng.randrange(-400,1200);y=rng.randrange(-100,1400);l=rng.randrange(40,300)
+                  d.polygon([(x,y),(x+l,y-60),(x+l//3,y+8)],fill=rng.choice(['#222230','#191925','#30303c']))
+              for x in range(0,W,22):
+                  for y in range(0,H,22):
+                      if x<160 or x>920:
+                          rr=rng.randrange(1,4);d.ellipse((x,y,x+rr,y+rr),fill=c if rng.random()<.20 else '#30303c')
+              d.polygon([(0,0),(340,0),(0,135)],fill=c)
+              d.polygon([(1080,0),(1080,220),(840,0)],fill=c2)
+              d.polygon([(0,1350),(0,1140),(260,1350)],fill=c)
+              d.polygon([(1080,1350),(750,1350),(1080,1205)],fill=c2)
+              for x,y,col in [(0,420,c),(1000,740,c2),(40,1040,c)]:
+                  d.polygon([(x,y),(x+80,y-110),(x+54,y-18),(x+130,y-38),(x+10,y+100),(x+40,y+10)],fill=col)
+              text(im,'ZOUM.CENTER  /  POKÉMON GO',25,28,cream,0)
+              text(im,'VELADORES ARTESANALES',1190,44,cream,3)
+              text(im,'@zoum.center',1260,31,cream,0)
+              return im
+          def photo(im,name,box,col,crop):
+              p=ImageOps.exif_transpose(Image.open(name+'.jpg')).convert('RGB')
+              w,h=p.size;p=p.crop(tuple(round(a*b) for a,b in zip(crop,(w,h,w,h))))
+              x,y,bw,bh=box;p=ImageOps.contain(p,(bw-12,bh-12),Image.Resampling.LANCZOS)
+              d=ImageDraw.Draw(im);d.rectangle((x,y,x+bw,y+bh),fill='#050509',outline=col,width=5)
+              im.paste(p,(x+(bw-p.width)//2,y+(bh-p.height)//2))
+          def save(im,n):im.save(out/f'{n:02d}.jpg',quality=92,optimize=True)
+          im=base(Y,B,1)
+          text(im,'¿DE QUÉ',90,104,cream)
+          text(im,'EQUIPO SOS?',205,128,Y)
+          photo(im,'20200804_195339',(50,410,307,650),Y,(.05,.12,.95,.98))
+          photo(im,'20200718_221416',(386,410,307,650),R,(0,.06,1,.95))
+          photo(im,'20200804_195532',(723,410,307,650),B,(0,.14,1,.98))
+          for x,t,c in [(203,'INSTINTO',Y),(540,'VALOR',R),(876,'SABIDURÍA',B)]:text(im,t,1080,38,c,0,x,300)
+          save(im,1)
+          for n,name,col,front,angle,sub in [(2,'INSTINTO',Y,'20200804_195339','20200804_195406','ENERGÍA PARA TU ESPACIO'),(3,'VALOR',R,'20200718_221416',None,'ENCENDÉ TU PASIÓN'),(4,'SABIDURÍA',B,'20200804_195532','20200804_195555','TU EQUIPO, TU LUZ')]:
+              im=base(col,col,n)
+              text(im,'EQUIPO',80,90,cream)
+              text(im,name,185,135,col)
+              if angle:
+                  photo(im,front,(55,370,490,755),col,(0,.12,1,.98))
+                  photo(im,angle,(570,450,455,600),col,(0,.20,1,.85))
+              else:
+                  photo(im,front,(275,370,530,755),col,(0,.03,1,.95))
+              text(im,sub,1125,38,col,2)
+              save(im,n)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Instagram/Publicaciones/Pokemon-Comic-Real
+          git commit -m 'Pokemon comic con fotos originales de los tres equipos'
+          git pull --rebase
+          git push
