@@ -1,0 +1,91 @@
+name: Pokemon arcade portada
+on:
+  push:
+    paths: ['.github/workflows/pokemon-arcade.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  design:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install Pillow
+      - run: |
+          curl -fLsS https://raw.githubusercontent.com/google/fonts/main/ofl/bangers/Bangers-Regular.ttf -o /tmp/Bangers.ttf
+          python - <<'PY'
+          from PIL import Image,ImageDraw,ImageFont,ImageOps,ImageFilter
+          from pathlib import Path
+          import random,math
+          W,H=1080,1350
+          out=Path('Instagram/Publicaciones/Pokemon-Arcade');out.mkdir(parents=True,exist_ok=True)
+          Y=(255,221,43);R=(255,72,74);B=(48,199,255);cream=(255,247,220)
+          def lettering(im,t,xy,size,col,limit=990,angle=0):
+              while True:
+                  f=ImageFont.truetype('/tmp/Bangers.ttf',size)
+                  bb=f.getbbox(t,stroke_width=6)
+                  if bb[2]-bb[0]<=limit:break
+                  size-=2
+              a=Image.new('RGBA',(bb[2]-bb[0]+32,bb[3]-bb[1]+36))
+              d=ImageDraw.Draw(a)
+              d.text((16-bb[0]+3,16-bb[1]+7),t,font=f,fill=(0,0,0),stroke_width=9,stroke_fill=(0,0,0))
+              d.text((16-bb[0],16-bb[1]),t,font=f,fill=col,stroke_width=5,stroke_fill=(13,18,39))
+              a=a.rotate(angle,expand=True,resample=Image.Resampling.BICUBIC)
+              im.paste(a,(int(xy[0]-a.width/2),xy[1]),a)
+          def background(cols):
+              im=Image.new('RGB',(W,H),(8,13,29));d=ImageDraw.Draw(im);rng=random.Random(89)
+              for i in range(3):
+                  x=180+360*i;c=cols[i%len(cols)]
+                  glow=Image.new('RGB',(W,H));g=ImageDraw.Draw(glow);g.ellipse((x-310,250,x+310,1150),fill=tuple(v//3 for v in c))
+                  im=Image.blend(im,glow.filter(ImageFilter.GaussianBlur(125)),.48)
+              d=ImageDraw.Draw(im)
+              for i in range(350):
+                  x=rng.randrange(W);y=rng.randrange(H);c=cols[min(2,x//360)%len(cols)]
+                  if x<120 or x>960 or y<330 or y>1120:
+                      v=rng.randrange(2,7);d.ellipse((x,y,x+v,y+v),fill=tuple(int(k*.45) for k in c))
+              for i in range(25):
+                  x=rng.choice([0,1080]);y=rng.randrange(100,1320);c=cols[i%len(cols)]
+                  d.line((x,y,x+ (1 if x==0 else -1)*rng.randrange(60,230),y-rng.randrange(20,100)),fill=c,width=rng.randrange(2,8))
+              for x,y,c in [(34,320,cols[0]),(1015,1020,cols[-1])]:
+                  d.polygon([(x,y),(x+45,y-95),(x+35,y-23),(x+90,y-44),(x-12,y+100),(x+12,y+12)],fill=c)
+              lettering(im,'ZOUM.CENTER  /  POKÉMON GO',(540,22),38,cream,800)
+              return im
+          def photo(im,name,box,c,crop):
+              p=ImageOps.exif_transpose(Image.open(name+'.jpg')).convert('RGB')
+              w,h=p.size;p=p.crop(tuple(round(a*b) for a,b in zip(crop,(w,h,w,h))))
+              x,y,bw,bh=box
+              p=ImageOps.contain(p,(bw,bh),Image.Resampling.LANCZOS)
+              px=x+(bw-p.width)//2;py=y+(bh-p.height)//2
+              d=ImageDraw.Draw(im)
+              d.rounded_rectangle((px-7,py-7,px+p.width+7,py+p.height+7),radius=14,fill=c)
+              im.paste(p,(px,py))
+          teams=[('INSTINTO',Y,'20200804_195339','20200804_195406','ENERGÍA PARA TU ESPACIO'),('VALOR',R,'20200718_221416',None,'ENCENDÉ TU PASIÓN'),('SABIDURÍA',B,'20200804_195532','20200804_195555','TU EQUIPO, TU LUZ')]
+          im=background([Y,R,B])
+          lettering(im,'¿DE QUÉ EQUIPO',(540,75),124,cream,950,3)
+          lettering(im,'SOS?',(540,195),186,Y,720,-3)
+          for i,(n,c,f,a,s) in enumerate(teams):
+              x=28+i*350;y=[435,385,435][i]
+              photo(im,f,(x,y,324,650),c,(0,.08,1,.98))
+              lettering(im,n,(x+162,y+635),65,c,320,2 if i!=2 else -2)
+          lettering(im,'¡ELEGÍ TU EQUIPO!  >',(540,1145),64,cream,850,2)
+          lettering(im,'VELADORES ARTESANALES  ·  @zoum.center',(540,1260),38,cream)
+          im.save(out/'01.jpg',quality=93)
+          for i,(n,c,f,a,s) in enumerate(teams,2):
+              im=background([c,c,c])
+              lettering(im,'EQUIPO',(540,80),115,cream,800,3)
+              lettering(im,n,(540,190),164,c,990,-2)
+              if a:
+                  photo(im,f,(40,380,515,745),c,(0,.12,1,.98))
+                  photo(im,a,(580,440,460,620),c,(0,.20,1,.85))
+              else:
+                  photo(im,f,(235,390,610,735),c,(0,.03,1,.95))
+              lettering(im,s,(540,1140),65,c,950,3)
+              lettering(im,'VELADOR ARTESANAL  ·  @zoum.center',(540,1260),40,cream)
+              im.save(out/f'{i:02d}.jpg',quality=93)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Instagram/Publicaciones/Pokemon-Arcade
+          git commit -m 'Pokemon arcade con tipografía Bangers y fotos originales'
+          git pull --rebase
+          git push
