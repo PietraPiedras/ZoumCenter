@@ -1,0 +1,51 @@
+name: Auditar similitud de fotografías
+on:
+  push:
+    paths:
+      - '.github/workflows/auditar-fotos.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install Pillow ImageHash
+      - run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageOps
+          import imagehash, json
+          files=sorted(p for p in Path('.').iterdir() if p.is_file() and p.suffix.lower() in {'.jpg','.jpeg','.png','.webp'})
+          hashes=[]
+          errors=[]
+          for p in files:
+              try:
+                  with Image.open(p) as src:
+                      im=ImageOps.exif_transpose(src).convert('RGB')
+                      hashes.append((p.name,imagehash.phash(im),imagehash.dhash(im),imagehash.colorhash(im),im.size))
+              except Exception as e:errors.append({'file':p.name,'error':str(e)})
+          pairs=[]
+          for i,(a,p,d,c,s) in enumerate(hashes):
+              for b,q,e,f,t in hashes[i+1:]:
+                  dp,dd,dc=p-q,d-e,c-f
+                  if dp<=6 and dd<=8 and dc<=5:
+                      pairs.append({'a':a,'b':b,'phash':dp,'dhash':dd,'colorhash':dc,'dimensions':[s,t]})
+          pairs.sort(key=lambda p:(p['phash']+p['dhash']+p['colorhash'],p['a'],p['b']))
+          out=Path('Instagram/Auditoria')
+          out.mkdir(parents=True,exist_ok=True)
+          (out/'fotos-similares.json').write_text(json.dumps({'originales':len(files),'comparadas':len(hashes),'pares_candidatos':len(pairs),'errores':errors,'pares':pairs},indent=2),encoding='utf-8')
+          lines=['# Auditoría de fotografías','',f'Originales: {len(files)}. Comparadas: {len(hashes)}. Pares candidatos: {len(pairs)}.','', 'Las coincidencias perceptuales son candidatos, no duplicados confirmados. No se movió ni eliminó ninguna foto.','', '| Foto A | Foto B | Distancia perceptual | Distancia de estructura | Distancia de color |','|---|---|---:|---:|---:|']
+          for p in pairs:
+              lines.append(f"| [{p['a']}](../../{p['a']}) | [{p['b']}](../../{p['b']}) | {p['phash']} | {p['dhash']} | {p['colorhash']} |")
+          (out/'fotos-similares.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Instagram/Auditoria
+          if ! git diff --cached --quiet; then
+            git commit -m 'Auditar similitud visual sin eliminar originales'
+            git pull --rebase
+            git push
+          fi
